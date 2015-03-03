@@ -1,0 +1,80 @@
+<link rel="import" href="../bower_components/polymer/polymer.html">
+<link rel="import" href="../bower_components/core-style/core-style.html">
+
+<polymer-element name="more-info-camera" attributes="stateObj">
+
+<template>
+  <div>
+    <img src="{{stillImage}}" class="camera-image" />
+  </div>
+  <core-style ref='ha-key-value-table'></core-style>
+   
+  <style>
+    .data-entry .value {
+      max-width: 200px;
+    }
+
+    @media (max-width: 720px) {
+      :host .camera-image {
+        max-width: calc(100%);         
+      }
+    }
+    
+    @media (max-width: 620px) {
+      :host .camera-image {
+        max-width: calc(100%);         
+      }
+    }
+    
+    
+  </style>
+  <div layout vertical>  
+ 
+    <template repeat="{{key in stateObj.attributes | getKeys}}">
+      <div layout justified horizontal class='data-entry'>
+        <div class='key'>
+          {{key}}
+        </div>
+        <div class='value'>
+          {{stateObj.attributes[key]}}
+        </div>
+      </div>
+    </template>
+  </div>
+</template>
+<script>
+  Polymer(Polymer.mixin({
+    interval: null,
+    stillImage: 'test',
+    observe: {
+      'stateObj': 'setParentClass'
+    },
+    getKeys: function(obj) {
+      return Object.keys(obj || {});
+    },
+
+    ready: function() {
+      var self = this;
+      console.log(self.stateObj);
+      console.log(this);
+      //self.setAttribute('still_image', self.attributes['entity_picture']);
+      
+      //console.log(his.stillImage);
+      self.interval = setInterval( function() {
+        if(self.stateObj) {
+          self.stillImage = self.stateObj.attributes['entity_picture'] + '?t=' + Date.now();  
+          self.stateObj.attributes.repostion = true;
+        }
+        
+      }, 250);
+    },
+
+    setParentClass: function (oldVal, newVal) {
+      if(!oldVal && newVal) {
+        this.stateObj.dialogClasses = 'more-info-camera wide-dialog';        
+      }
+    }
+
+  }, storeListenerMixIn));
+</script>
+</polymer-element>
