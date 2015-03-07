@@ -33,12 +33,17 @@ def setup_platform(hass, config, add_devices_callback, discovery_info=None):
 
         add_devices_callback(cameras)
     except Exception as inst:
-        _LOGGER.error("Could not find Vera lights: %s", inst)
+        _LOGGER.error("Could not find cameras: %s", inst)
         return False
 
+def get_camera(hass, device_info):
+    return DlinkCamera(hass, device_info) 
+
 class DlinkCamera(Camera):
+    def __init__(self, hass, device_info):
+        super().__init__(hass, device_info)
 
     @property
     def still_image_url(self):
         """ This should be implemented by different camera models. """
-        return self.BASE_URL + '/' + 'image.jpg'
+        return self.BASE_URL + 'image.jpg'

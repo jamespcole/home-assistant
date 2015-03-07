@@ -72,12 +72,14 @@ def setup(hass, config):
         """ Add cameras to the component to track. """
         for camera in new_cameras:
             if camera is not None and camera not in cameras.values():
+
+                camera.hass = hass
                 camera.entity_id = generate_entity_id(
                     ENTITY_ID_FORMAT, camera.name, cameras.keys())
 
                 cameras[camera.entity_id] = camera
 
-                camera.update_ha_state(hass)
+                camera.update_ha_state()
 
         camera_group.update_tracked_entity_ids(cameras.keys())
 
@@ -107,7 +109,7 @@ def setup(hass, config):
             logger.info("Updating camera states")
 
             for camera in cameras.values():
-                camera.update_ha_state(hass, True)
+                camera.update_ha_state()
     
 
     def _proxy_camera_image(handler, path_match, data):
@@ -148,8 +150,11 @@ class Camera(Device):
     """ Base class for cameras. """
 
     def __init__(self, hass, device_info):
+        #super().__init__(hass, device_info)
         self.device_info = device_info
         self.BASE_URL = device_info.get('base_url')
+        if not self.BASE_URL.endswith('/'):
+            self.BASE_URL = self.BASE_URL + '/'
         self.username = device_info.get('username')
         self.password = device_info.get('password')
 
@@ -170,4 +175,6 @@ class Camera(Device):
     @property
     def still_image_url(self):
         """ This should be implemented by different camera models. """
-        return ''
+        if self.device_info.get('still_image_url'):
+            return self.BASE_URL + self.device_info.get('still_image_url')
+        return self.BASE_URL + 'image.jpg'

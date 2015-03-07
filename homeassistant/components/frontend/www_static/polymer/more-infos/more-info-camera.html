@@ -59,7 +59,7 @@
 
     ready: function() {
       var self = this;
-      this.$.camera_image.addEventListener('load', function() {   
+      this.$.camera_image.addEventListener('load', function() {           
         //this is kind of lame but the dialog won't resize after the image laods unless
         //it is forced to             
         if(self.reloadTime) {
@@ -82,9 +82,6 @@
 
     detached: function() {
       this.stopListeningToStores();
-      
-      console.log('detached', this.isShowing);
-
       this.isOpen = this.checkIfOpen();
     },    
 
@@ -123,7 +120,6 @@
             clearInterval(self.interval);
             self.interval = null;
             self.reloadTime = Date.now();
-            console.log('cleared', self.isOpen);
             return;
           }
         }
