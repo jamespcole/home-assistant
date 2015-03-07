@@ -131,14 +131,6 @@ def setup(hass, config):
 
     update_camera_states(None)
 
-    # try:
-    #     # Register the handler for the camera image proxy
-    #     hass.http.register_path('GET', re.compile(r'/api/camera_proxy/(?P<entity_id>[a-zA-Z\._0-9]+)'), _proxy_camera_image)
-    #     http_registered = True
-    # except Exception as inst:
-    #     _LOGGER.error("http component not available yet, will rery later")
-    
-
     # Fire every 10 seconds
     hass.track_time_change(update_camera_states, second=range(0, 60, 10))
 
@@ -162,8 +154,13 @@ class Camera(Device):
         response = requests.get(self.still_image_url, auth=(self.username, self.password))        
         return response
 
-    # def update_image(self):
-    #     self.still_image_base_64 = self.get_camera_image_base_64(self.still_image_url)
+    @property
+    def name(self):
+        if self.device_info.get('name'): 
+            return self.device_info.get('name')
+        else:
+            return super().name
+
 
     @property
     def state_attributes(self):
