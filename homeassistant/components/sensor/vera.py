@@ -9,12 +9,10 @@ sensor:
     platform: vera
     vera_controller_url: http://YOUR_VERA_IP:3480/
     device_data:
-        -
-            vera_id: 12
+        12:
             name: My awesome sensor
             exclude: true
-        -
-            vera_id: 13
+        13:
             name: Another sensor
 
 VARIABLES:
@@ -30,15 +28,10 @@ device_data
 *Optional
 This contains an array additional device info for your Vera devices.  It is not
 required and if not specified all sensors configured in your Vera controller
-will be added with default values.
-
+will be added with default values.  You should use the id of your vera device
+as the key for the device within device_data
 
 These are the variables for the device_data array:
-
-vera_id
-*Required
-The Vera device id you wish these configuration options to be applied to
-
 
 name
 *Optional
@@ -55,8 +48,11 @@ it should be set to "true" if you want this device excluded
 """
 import logging
 import time
+from requests.exceptions import RequestException
 
 from homeassistant.helpers import Device
+from homeassistant.const import (
+    ATTR_BATTERY_LEVEL, ATTR_TRIPPED, ATTR_ARMED, ATTR_LAST_TRIP_TIME)
 # pylint: disable=no-name-in-module, import-error
 import homeassistant.external.vera.vera as veraApi
 
@@ -66,33 +62,34 @@ _LOGGER = logging.getLogger(__name__)
 # pylint: disable=unused-argument
 def get_devices(hass, config):
     """ Find and return Vera Sensors. """
+
+    base_url = config.get('vera_controller_url')
+    if not base_url:
+        _LOGGER.error(
+            "The required parameter 'vera_controller_url'"
+            " was not found in config"
+        )
+        return False
+
+    device_data = config.get('device_data', {})
+
+    vera_controller = veraApi.VeraController(base_url)
+    categories = ['Temperature Sensor', 'Light Sensor', 'Sensor']
+    devices = []
     try:
-        base_url = config.get('vera_controller_url')
-        if not base_url:
-            _LOGGER.error(
-                "The required parameter 'vera_controller_url'"
-                " was not found in config"
-            )
-            return False
-
-        device_data = config.get('device_data', None)
-
-        vera_controller = veraApi.VeraController(base_url)
-        categories = ['Temperature Sensor', 'Light Sensor', 'Sensor']
         devices = vera_controller.get_devices(categories)
+    except RequestException:
+        # There was a network related error connecting to the vera controller
+        _LOGGER.exception("Error communicating with Vera API")
+        return False
 
-        vera_sensors = []
-        for device in devices:
-            extra_data = get_extra_device_data(device_data, device.deviceId)
-            exclude = False
-            if extra_data:
-                exclude = extra_data.get('exclude', False)
+    vera_sensors = []
+    for device in devices:
+        extra_data = device_data.get(device.deviceId, {})
+        exclude = extra_data.get('exclude', False)
 
-            if exclude is not True:
-                vera_sensors.append(VeraSensor(device, extra_data))
-    # pylint: disable=broad-except
-    except Exception as inst:
-        _LOGGER.error("Could not find Vera sensors: %s", inst)
+        if exclude is not True:
+            vera_sensors.append(VeraSensor(device, extra_data))
 
     return vera_sensors
 
@@ -100,17 +97,6 @@ def get_devices(hass, config):
 def setup_platform(hass, config, add_devices, discovery_info=None):
     """ Performs setup for Vera controller devices """
     add_devices(get_devices(hass, config))
-
-
-def get_extra_device_data(device_data, device_id):
-    """ Gets the additional configuration data by Vera device Id """
-    if not device_data:
-        return None
-
-    for item in device_data:
-        if item.get('vera_id') == device_id:
-            return item
-    return None
 
 
 class VeraSensor(Device):
@@ -121,6 +107,10 @@ class VeraSensor(Device):
     def __init__(self, vera_device, extra_data=None):
         self.vera_device = vera_device
         self.extra_data = extra_data
+        if self.extra_data and self.extra_data.get('name'):
+            self._name = self.extra_data.get('name')
+        else:
+            self._name = self.vera_device.name
 
     def __str__(self):
         return "%s %s %s" % (self.name, self.vera_device.deviceId, self.state)
@@ -132,19 +122,17 @@ class VeraSensor(Device):
     @property
     def name(self):
         """ Get the mame of the sensor. """
-        if self.extra_data and self.extra_data.get('name'):
-            return self.extra_data.get('name')
-        return self.vera_device.name
+        return self._name
 
     @property
     def state_attributes(self):
         attr = super().state_attributes
         if self.vera_device.has_battery:
-            attr['Battery'] = self.vera_device.battery_level + '%'
+            attr[ATTR_BATTERY_LEVEL] = self.vera_device.battery_level + '%'
 
         if self.vera_device.is_armable:
             armed = self.vera_device.refresh_value('Armed')
-            attr['Armed'] = 'True' if armed == '1' else 'False'
+            attr[ATTR_ARMED] = 'True' if armed == '1' else 'False'
 
         if self.vera_device.is_trippable:
             last_tripped = self.vera_device.refresh_value('LastTrip')
@@ -152,9 +140,9 @@ class VeraSensor(Device):
                 "%Y-%m-%d %H:%M",
                 time.localtime(int(last_tripped))
             )
-            attr['Last Tripped'] = trip_time_str
+            attr[ATTR_LAST_TRIP_TIME] = trip_time_str
             tripped = self.vera_device.refresh_value('Tripped')
-            attr['Tripped'] = 'True' if tripped == '1' else 'False'
+            attr[ATTR_TRIPPED] = 'True' if tripped == '1' else 'False'
 
         attr['Vera Device Id'] = self.vera_device.vera_device_id
         return attr
