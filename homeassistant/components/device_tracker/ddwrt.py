@@ -15,7 +15,10 @@ MIN_TIME_BETWEEN_SCANS = timedelta(seconds=5)
 
 _LOGGER = logging.getLogger(__name__)
 
+_DDWRT_DATA_REGEX = re.compile(r'\{(\w+)::([^\}]*)\}')
 
+
+# pylint: disable=unused-argument
 def get_scanner(hass, config):
     """ Validates config and returns a DdWrt scanner. """
     if not validate_config(config,
@@ -45,7 +48,7 @@ class DdWrtDeviceScanner(object):
 
         self.mac2name = None
 
-        #test the router is accessible
+        # Test the router is accessible
         url = 'http://{}/Status_Wireless.live.asp'.format(self.host)
         data = self.get_ddwrt_data(url)
         self.success_init = data is not None
@@ -131,15 +134,17 @@ class DdWrtDeviceScanner(object):
     def get_ddwrt_data(self, url):
         """ Retrieve data from DD-WRT and return parsed result  """
         try:
-            response = requests.get(url, auth=(self.username,
-                self.password), timeout=4)
+            response = requests.get(
+                url,
+                auth=(self.username, self.password),
+                timeout=4)
         except requests.exceptions.Timeout:
             _LOGGER.exception("Connection to the router timed out")
             return
         if response.status_code == 200:
             return _parse_ddwrt_response(response.text)
         elif response.status_code == 401:
-        # Authentication error
+            # Authentication error
             _LOGGER.exception(
                 "Failed to authenticate, "
                 "please check your username and password")
@@ -151,9 +156,6 @@ class DdWrtDeviceScanner(object):
 def _parse_ddwrt_response(data_str):
     """ Parse the awful DD-WRT data format, why didn't they use JSON????.
         This code is a python version of how they are parsing in the JS  """
-    data = {}
-    pattern = re.compile(r'\{(\w+)::([^\}]*)\}')
-    for (key, val) in re.findall(pattern, data_str):
-        data[key] = val
-
-    return data
+    return {
+        key: val for key, val in _DDWRT_DATA_REGEX
+        .findall(data_str)}

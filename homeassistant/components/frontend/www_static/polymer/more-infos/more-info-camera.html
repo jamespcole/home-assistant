@@ -1,0 +1,158 @@
+<link rel="import" href="../bower_components/polymer/polymer.html">
+<link rel="import" href="../bower_components/paper-button/paper-button.html">
+<link rel="import" href="../bower_components/paper-spinner/paper-spinner.html">
+
+<polymer-element name="more-info-camera" attributes="stateObj">
+<template>
+  <style>
+
+  #retry_btn {
+    color: #4285f4;
+  }
+   @media (max-width: 720px) {
+      :host .camera-image {
+        max-width: calc(100%);
+      }
+    }
+
+    @media (max-width: 620px) {
+      :host .camera-image {
+        max-width: calc(100%);
+      }
+    }
+
+    @media (max-height: 780px) {
+      :host .camera-container {
+        height: 550px;
+      }
+    }
+
+  </style>
+  <div class="camera-container" id="camera_container">
+    <template if="{{ connectionFailed }}">
+      <div center vertical layout>
+        <div>Could not connect to camera...</div>
+        <paper-button ink id="retry_btn" on-click="{{retry}}">Retry</paper-button>
+      <div>
+    </template>
+
+    <img  hidden?="{{connectionFailed}}" src="" onload="" id="camera_image" class="camera-image" />
+    <div center horizontal layout>
+      <div>
+        {{frameRateSec}} frames/sec
+      </div>
+      <div flex>
+        &nbsp;
+      </div>
+      <div>
+        {{stateObj.attributes['brand']}} - {{stateObj.attributes['model_name']}}
+      </div>
+    </div>
+  </div>
+
+
+</template>
+<script>
+
+  var authStore = window.hass.authStore;
+
+  Polymer({
+    stateObj: null,
+    isStreaming: false,
+    stillImage: null,
+    reloadTime: null,
+    dialogOpen: false,
+    errorCount: 0,
+    connectionFailed: false,
+    //times are to smooth out the images
+    debounceLoadMs: 100, //the reload rate
+    startedLoading: 0,
+    frameRateSec: 0,
+    steamingStarted: 0,
+    frameCount: 0,
+
+    ready: function() {
+      var self = this;
+      this.$.camera_image.addEventListener('error', function() {
+        self.errorCount++;
+        if(self.errorCount > 5) {
+          self.connectionFailed = true;
+          self.isStreaming = false;
+          self.errorCount = 0;
+        }
+        else {
+          self.loadNextFrame();
+        }
+      });
+
+      this.$.camera_image.addEventListener('load', function() {
+        var finishedLoading = Date.now();
+        self.frameCount++;
+
+        //this is kind of lame but the dialog won't resize after the image losds unless
+        //it is forced to
+        if(self.reloadTime) {
+          self.reloadTime = null;
+          //this is a hack to force the dialog to resize after the camera image loadss
+          document.querySelector("* /deep/ more-info-dialog").reposition(null, Date.now());
+        }
+
+        var loadTimeMs = finishedLoading - self.startedLoading;
+        var debounceMS = self.debounceLoadMs - loadTimeMs;
+
+        var secondsRunning = ((Date.now() - self.steamingStarted) / 1000);
+        self.frameRateSec =  (self.frameCount / secondsRunning).toFixed(2);
+
+        if(debounceMS < 0) {
+          self.loadNextFrame();
+        }
+        else {
+          setTimeout(function () {
+            self.loadNextFrame();
+          }, debounceMS);
+        }
+      });
+
+      //this.$.retry_btn.addEventListener('click', this.startImageStream);
+    },
+
+    dialogOpenChanged: function(oldVal, newVal) {
+      if(newVal == true) {
+        this.startImageStream();
+      }
+    },
+
+    loadNextFrame: function() {
+      if(this.dialogOpen && this.stateObj && !this.connectionFailed) {
+        isStreaming = true;
+        //this.stillImage = this.stateObj.attributes['still_image_url'] + '?api_password=' + authStore.authToken + '&t=' + Date.now();
+        //we need to set the src of the image rather than use a databound property, very rapidly updating
+        //databound properties is causin performance issues.
+        this.$.camera_image.src = this.stateObj.attributes['still_image_url'] + '?api_password=' + authStore.authToken + '&t=' + Date.now();
+        this.startedLoading = Date.now();
+      }
+      else {
+        isStreaming = false;
+      }
+    },
+
+    startImageStream: function() {
+
+      if(!this.isStreaming && this.dialogOpen && this.stateObj) {
+        this.reloadTime = Date.now();
+        this.frameRateSec = 0;
+        this.steamingStarted = Date.now();
+        this.frameCount = 0;
+        this.connectionFailed = false;
+        this.errorCount = 0;
+        this.loadNextFrame();
+      }
+    },
+
+    retry: function(event, detail, sender) {
+      this.startImageStream();
+    }
+
+  });
+</script>
+</polymer-element>
