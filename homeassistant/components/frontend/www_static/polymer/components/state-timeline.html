@@ -12,6 +12,7 @@
 
     <google-jsapi on-api-load="{{googleApiLoaded}}"></google-jsapi>
     <div id="timeline" style='width: 100%; height: auto;'></div>
+    <div id="line_graphs" style='width: 100%; height: auto;'></div>
 
   </template>
   <script>
@@ -21,7 +22,7 @@
 
     googleApiLoaded: function() {
       google.load("visualization", "1", {
-        packages: ["timeline"],
+        packages: ["timeline", "corechart"],
         callback: function() {
           this.apiLoaded = true;
           this.drawChart();
@@ -64,12 +65,25 @@
         stateHistory = [this.stateHistory];
       }
 
+      var lineChartDevices = Array();
+      var numTimelines = 0;
       // stateHistory is a list of lists of sorted state objects
       stateHistory.forEach(function(stateInfo) {
         if(stateInfo.length === 0) return;
 
         var entityDisplay = stateInfo[0].entityDisplay;
         var newLastChanged, prevState = null, prevLastChanged = null;
+        //get the latest update to get the graph type from the component attributes
+        var attributes = stateInfo[stateInfo.length - 1].attributes;
+
+        //if the device has a unit of meaurment it will be added as a line graph further down
+        if(attributes['unit_of_measurement']) {
+          if(!lineChartDevices[attributes['unit_of_measurement']]){
+            lineChartDevices[attributes['unit_of_measurement']] = [];
+          }
+          lineChartDevices[attributes['unit_of_measurement']].push(stateInfo);
+          return;
+        }
 
         stateInfo.forEach(function(state) {
           if (prevState !== null && state.state !== prevState) {
@@ -86,10 +100,11 @@
         });
 
         addRow(entityDisplay, prevState, prevLastChanged, new Date());
+        numTimelines++;
       }.bind(this));
 
       chart.draw(dataTable, {
-        height: 55 + stateHistory.length * 42,
+         height: 55 + numTimelines * 42,
 
         // interactive properties require CSS, the JS api puts it on the document
         // instead of inside our Shadow DOM.
@@ -103,6 +118,121 @@
           format: 'H:mm'
         },
       });
+
+      var isSingleDevice = false;
+      if(stateHistory.length === 1) {
+        isSingleDevice = true;
+      }
+
+      while (this.$.line_graphs.firstChild) {
+        this.$.line_graphs.removeChild(this.$.line_graphs.firstChild);
+      }
+
+      for (var key in lineChartDevices) {
+        var deviceStates = lineChartDevices[key];
+
+        if(isSingleDevice) {
+          container = this.$.timeline
+        }
+        else {
+          container = this.$.single_timeline;
+          container = document.createElement("DIV");
+          this.$.line_graphs.appendChild(container);
+        }
+
+
+        var chart = new google.visualization.LineChart(container);
+
+
+        var dataTable = new google.visualization.DataTable();
+        dataTable.addColumn({ type: 'datetime', id: 'Time' });
+
+        var options = {
+            legend: { position: 'top' },
+            vAxes: {
+              // Adds units to the left hand side of the graph
+              0: {title: key}
+            },
+            hAxis: {
+              format: 'H:mm'
+            }
+          };
+
+        if(isSingleDevice) {
+          options.legend.position = 'none';
+        }
+
+        var times = _(deviceStates).chain().flatten().pluck('lastChangedAsDate').unique().value();
+
+        times = _.sortBy(times, function(o) { return o; })
+        //console.log(times);
+        var data = [];
+        var empty = new Array(deviceStates.length);
+        for(var i = 0; i < empty.length; i++) {
+          empty[i] = 0;
+        }
+
+        var timeIndex = 1;
+        var endDate = new Date();
+        var prevDate = times[0];
+        data.push([times[0]].concat(empty));
+        while(prevDate < endDate) {
+          var currentDate = new Date(prevDate);
+          currentDate.setMinutes(prevDate.getMinutes() + 1);
+          if(currentDate >= times[timeIndex] && timeIndex < times.length) {
+            data.push([times[timeIndex]].concat(empty));
+            timeIndex++;
+          }
+          else {
+            data.push([currentDate].concat(empty));
+          }
+
+          prevDate = currentDate;
+        }
+
+        var deviceCount = 0;
+        deviceStates.forEach(function(device) {
+          var attributes = device[device.length - 1].attributes;
+          dataTable.addColumn('number', attributes['friendly_name']);
+
+          var currentState = 0;
+          var previousState = 0;
+          var lastIndex = 0;
+          var count = 0;
+          device.forEach(function(state) {
+
+            currentState = state.state;
+            var start = state.lastChangedAsDate;
+            //console.log(start);
+            if(state.state == 'None') {
+              currentState = previousState;
+            }
+            for(var i = lastIndex; i < data.length; i++) {
+              data[i][1 + deviceCount] = parseFloat(previousState);
+              if(data[i][0] == start) {
+                data[i][1 + deviceCount] = parseFloat(currentState);
+                lastIndex = i;
+                break;
+              }
+            }
+
+            previousState = currentState;
+
+            count++;
+          }.bind(this));
+
+          //fill in the rest of the Array
+          for(var i = lastIndex; i < data.length; i++) {
+            data[i][1 + deviceCount] = parseFloat(previousState);
+          }
+
+          deviceCount++;
+        }.bind(this));
+
+        dataTable.addRows(data);
+        chart.draw(dataTable, options);
+      }
+
     },
 
   });
