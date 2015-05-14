@@ -937,9 +937,9 @@ class Config(object):
         # Directory that holds the configuration
         self.config_dir = os.path.join(os.getcwd(), 'config')
 
-    def path(self, path):
+    def path(self, *path):
         """ Returns path to the file within the config dir. """
-        return os.path.join(self.config_dir, path)
+        return os.path.join(self.config_dir, *path)
 
     def temperature(self, value, unit):
         """ Converts temperature to user preferred unit if set. """
@@ -958,6 +958,17 @@ class Config(object):
         except ValueError:
             # Could not convert value to float
             return value, unit
+
+    def as_dict(self):
+        """ Converts config to a dictionary. """
+        return {
+            'latitude': self.latitude,
+            'longitude': self.longitude,
+            'temperature_unit': self.temperature_unit,
+            'location_name': self.location_name,
+            'time_zone': self.time_zone.zone,
+            'components': self.components,
+        }
 
 
 class HomeAssistantError(Exception):
