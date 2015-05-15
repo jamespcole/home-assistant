@@ -111,42 +111,42 @@ def setup(hass, config):
         # This sets up and fired events for components that use the
         # camera as a discovery platform.
 
-        # data = {}
-        # data['entity_id'] = entity_id
-        # data[ATTR_DOMAIN] = DOMAIN
-        # data['name'] = entity.name + ' Record'
-        # data['parent_action'] = SWITCH_ACTION_RECORD
-        # data['callback_service'] = SERVICE_CAMERA
-        # data['callback_event'] = entity_id + EVENT_CALLBACK_RECORD
-        # data['listen_event'] = entity_id + EVENT_CHANGE_RECORD
-        # hass.bus.fire(EVENT_PLATFORM_DISCOVERED,
-        #               {ATTR_SERVICE: DISCOVER_CHILD_SWITCHES,
-        #                ATTR_DISCOVERED: data})
+        data = {}
+        data['entity_id'] = entity_id
+        data[ATTR_DOMAIN] = DOMAIN
+        data['name'] = entity.name + ' Record'
+        data['parent_action'] = SWITCH_ACTION_RECORD
+        data['callback_service'] = SERVICE_CAMERA
+        data['callback_event'] = entity_id + EVENT_CALLBACK_RECORD
+        data['listen_event'] = entity_id + EVENT_CHANGE_RECORD
+        hass.bus.fire(EVENT_PLATFORM_DISCOVERED,
+                      {ATTR_SERVICE: DISCOVER_CHILD_SWITCHES,
+                       ATTR_DISCOVERED: data})
 
-        # if entity.is_motion_detection_supported:
-        #     data = {}
-        #     data['entity_id'] = entity_id
-        #     data[ATTR_DOMAIN] = DOMAIN
-        #     data['name'] = entity.name + ' Motion Detection'
-        #     data['parent_action'] = SWITCH_ACTION_MOTION
-        #     data['callback_event'] = entity_id + EVENT_CALLBACK_MOTION
-        #     data['callback_service'] = SERVICE_CAMERA
-        #     data['listen_event'] = entity_id + EVENT_CHANGE_MOTION
-        #     hass.bus.fire(EVENT_PLATFORM_DISCOVERED,
-        #                   {ATTR_SERVICE: DISCOVER_CHILD_SWITCHES,
-        #                    ATTR_DISCOVERED: data})
+        if entity.is_motion_detection_supported:
+            data = {}
+            data['entity_id'] = entity_id
+            data[ATTR_DOMAIN] = DOMAIN
+            data['name'] = entity.name + ' Motion Detection'
+            data['parent_action'] = SWITCH_ACTION_MOTION
+            data['callback_event'] = entity_id + EVENT_CALLBACK_MOTION
+            data['callback_service'] = SERVICE_CAMERA
+            data['listen_event'] = entity_id + EVENT_CHANGE_MOTION
+            hass.bus.fire(EVENT_PLATFORM_DISCOVERED,
+                          {ATTR_SERVICE: DISCOVER_CHILD_SWITCHES,
+                           ATTR_DISCOVERED: data})
 
-        # data = {}
-        # data['entity_id'] = entity_id
-        # data[ATTR_DOMAIN] = DOMAIN
-        # data['name'] = entity.name + ' Snapshot'
-        # data['parent_action'] = SWITCH_ACTION_SNAPSHOT
-        # data['callback_service'] = SERVICE_CAMERA
-        # data['callback_event'] = entity_id + EVENT_CALLBACK_SNAPSHOT
-        # data['listen_event'] = entity_id + EVENT_CHANGE_SNAPSHOT
-        # hass.bus.fire(EVENT_PLATFORM_DISCOVERED,
-        #               {ATTR_SERVICE: DISCOVER_CHILD_SWITCHES,
-        #                ATTR_DISCOVERED: data})
+        data = {}
+        data['entity_id'] = entity_id
+        data[ATTR_DOMAIN] = DOMAIN
+        data['name'] = entity.name + ' Snapshot'
+        data['parent_action'] = SWITCH_ACTION_SNAPSHOT
+        data['callback_service'] = SERVICE_CAMERA
+        data['callback_event'] = entity_id + EVENT_CALLBACK_SNAPSHOT
+        data['listen_event'] = entity_id + EVENT_CHANGE_SNAPSHOT
+        hass.bus.fire(EVENT_PLATFORM_DISCOVERED,
+                      {ATTR_SERVICE: DISCOVER_CHILD_SWITCHES,
+                       ATTR_DISCOVERED: data})
 
         entity.check_required_configurators()
 
