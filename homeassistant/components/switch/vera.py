@@ -79,7 +79,8 @@ def get_devices(hass, config):
     vera_controller = veraApi.VeraController(base_url)
     devices = []
     try:
-        devices = vera_controller.get_devices(['Switch', 'Armable Sensor'])
+        devices = vera_controller.get_devices([
+            'Switch', 'Armable Sensor', 'On/Off Switch'])
     except RequestException:
         # There was a network related error connecting to the vera controller
         _LOGGER.exception("Error communicating with Vera API")
